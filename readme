@@ -1,0 +1,13 @@
+Implement this
+Vijay Varma Vegesna
+Mayumi Thapa
+Input Parameters:
+Job Description: Include key responsibilities, required skills, and qualifications.
+Criteria for Evaluation: Define the criteria for ranking (e.g., years of experience, specific skills, education level).
+Preprocessing Resumes:
+Use Natural Language Processing (NLP) techniques to extract relevant information from resumes, such as:
+Name and contact information
+Education background
+Work experience (job titles, companies, dates)
+Skills and certifications
+Projects and accomplishments
