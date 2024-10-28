@@ -4,13 +4,12 @@ import LoginPage from './components/LoginPage';
 import RegistrationForm from './components/RegistrationForm';
 import { AuthProvider } from './context/AuthContext';
 import Dashboard from './components/Dashboard';
-import RequirementsDisplay from './components/RequirementsDisplay'; 
+import EvaluationResults from './components/EvaluationResults'; // Import the new component
 import ProtectedRoute from './components/ProtectedRoute';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App = () => {
   return (
-    // Provides authentication context to the whole app
     <AuthProvider>
       <Router>
         <Routes>
@@ -19,17 +18,16 @@ const App = () => {
           <Route
             path="/dashboard"
             element={
-              // Protects the Dashboard route to only allow access if authenticated
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
             }
           />
-          <Route path="/requirements" element={
+          <Route path="/evaluation" element={
             <ProtectedRoute>
-              <RequirementsDisplay />
+              <EvaluationResults />
             </ProtectedRoute>
-            } /> {/* New route */}
+          } /> {/* New route */}
         </Routes>
       </Router>
     </AuthProvider>
