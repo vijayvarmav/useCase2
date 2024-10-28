@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm install --prefix ./design && npm install --prefix ./backend && concurrently \"npm start --prefix ./design\" \"npm start --prefix ./backend\"",
+    "start": "npm install && npm install --prefix ./design && npm install --prefix ./backend && concurrently \"npm start --prefix ./design\" \"npm start --prefix ./backend\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
