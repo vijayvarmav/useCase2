@@ -1,10 +1,19 @@
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
+const path = require('path');
 
-const db = new sqlite3.Database(':memory:'); // Using in-memory database for testing, or replace with a file-based db.
+// Specify the path for your database file
+const dbPath = path.join(__dirname, 'database.db'); // Creates a file named database.db in the same directory
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error('Could not connect to database:', err);
+  } else {
+    console.log('Connected to the database.');
+  }
+});
 
+// Create the users table
 db.serialize(() => {
-  // Create users table with fields: id, name, email, and password
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
