@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFiles, setResumeFiles] = useState([]);
   const [evaluationPoints, setEvaluationPoints] = useState([]);
+  const [results, setResults] = useState([]);
   const navigate = useNavigate();
 
   const handleInputChange = (e) => {
@@ -40,30 +41,29 @@ const Dashboard = () => {
         .split(",")
         .map((text) => text.trim())
         .filter((text) => text);
- 
+
+      const newEntry = {
+        text: newTexts,
+        points: 0, // Initialize with 0
+      };
+
       if (editIndex !== null) {
         // Edit the existing entry
         const updatedTexts = [...submittedTexts];
-        updatedTexts[editIndex] = { text: newTexts, points: evaluationPoints[editIndex].points };
- 
+        updatedTexts[editIndex] = newEntry;
+
         const updatedEvaluationPoints = [...evaluationPoints];
-        updatedEvaluationPoints[editIndex] = { text: newTexts, points: evaluationPoints[editIndex].points };
- 
+        updatedEvaluationPoints[editIndex] = newEntry;
+
         setSubmittedTexts(updatedTexts);
         setEvaluationPoints(updatedEvaluationPoints);
         setEditIndex(null); // Clear edit index for future additions
       } else {
         // Add new entry
-        newTexts.forEach((text) => {
-          const newEntry = {
-            text: [text],
-            points: "0", // Initialize with "0" as a string
-          };
-          setSubmittedTexts((prev) => [...prev, newEntry]);
-          setEvaluationPoints((prev) => [...prev, newEntry]);
-        });
+        setSubmittedTexts((prev) => [...prev, newEntry]);
+        setEvaluationPoints((prev) => [...prev, newEntry]);
       }
- 
+
       setInputText("");
       setDialogVisible(false);
     }
@@ -72,29 +72,28 @@ const Dashboard = () => {
   const handleEvaluateResumes = async () => {
     const formData = new FormData();
 
-    formData.append('jobDescription', jobDescription);
-    console.log('Evaluation Points before submission:', JSON.stringify(evaluationPoints));
-    formData.append('evaluationPoints', JSON.stringify(evaluationPoints));
+    formData.append("jobDescription", jobDescription);
+    console.log("Evaluation Points before submission:", JSON.stringify(evaluationPoints));
+    formData.append("evaluationPoints", JSON.stringify(evaluationPoints));
 
     Array.from(resumeFiles).forEach((file) => {
-        formData.append('resumes', file);
+      formData.append("resumes", file);
     });
 
     try {
-        const response = await axios.post('http://localhost:5000/api/evaluate', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
-        
-        // Log the response data without any further action
-        console.log('Data received from backend:', response.data);
-        
-    } catch (error) {
-        console.error('Error evaluating resumes:', error);
-    }
-};
+      const response = await axios.post("http://localhost:5000/api/evaluate", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
+      // Store the results and potentially display them to the user
+      setResults(response.data);
+
+    } catch (error) {
+      console.error("Error evaluating resumes:", error);
+    }
+  };
 
   const handleEdit = (index) => {
     const { text } = submittedTexts[index];
@@ -175,7 +174,7 @@ const Dashboard = () => {
                       value={item.points}
                       onChange={(e) => handleEvaluationPointsChange(index, e.target.value)}
                       className="form-range"
-                      style={{ width: '100px' }}
+                      style={{ width: "100px" }}
                     />
                     <span>{item.points}</span>
                   </span>
@@ -199,13 +198,29 @@ const Dashboard = () => {
       </div>
 
       <div className="d-flex justify-content-center">
-        <button
-          className="btn btn-success mt-3 text-center"
-          onClick={handleEvaluateResumes}
-        >
+        <button className="btn btn-success mt-3 text-center" onClick={handleEvaluateResumes}>
           Evaluate Resumes
         </button>
       </div>
+
+      {/* Display Evaluation Results */}
+      {results.length > 0 && (
+        <div className="mt-3">
+          <h4>Evaluation Results:</h4>
+          <ul className="list-group">
+            {results.map((result, index) => (
+              <li key={index} className="list-group-item">
+                <strong>{result.name}</strong> (Score: {result.totalScore})
+                <div>Email: {result.email}</div>
+                <div>Phone: {result.phone}</div>
+                <div>Education: {result.education.join(', ')}</div>
+                <div>Skills: {result.skills.join(', ')}</div>
+                <div>Experience: {result.workExperience.join(', ')}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {dialogVisible && (
         <div className="modal show mt-5" style={{ display: "block" }}>
@@ -215,11 +230,7 @@ const Dashboard = () => {
                 <h5 className="modal-title">
                   {editIndex !== null ? "Edit Requirements" : "Add Requirements"}
                 </h5>
-                <button
-                  type="button"
-                  className="close"
-                  onClick={() => setDialogVisible(false)}
-                >
+                <button type="button" className="close" onClick={() => setDialogVisible(false)}>
                   &times;
                 </button>
               </div>
@@ -233,18 +244,10 @@ const Dashboard = () => {
                 />
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setDialogVisible(false)}
-                >
+                <button type="button" className="btn btn-secondary" onClick={() => setDialogVisible(false)}>
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleSubmit}
-                >
+                <button type="button" className="btn btn-primary" onClick={handleSubmit}>
                   {editIndex !== null ? "Update" : "Add"}
                 </button>
               </div>
