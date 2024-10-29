@@ -42,22 +42,32 @@ app.post('/api/evaluate', upload.array('resumes'), (req, res) => {
     const jobDescription = req.body.jobDescription;
     const requiredSkills = Array.from(extractSkills(jobDescription));
     const rankedResumes = [];
+    const evaluationPoints = JSON.parse(req.body.evaluationPoints || "[]"); // Parse evaluation points from request
+
+    // Log the incoming evaluation points for debugging
+    console.log('Received evaluation points:', evaluationPoints);
 
     req.files.forEach(file => {
         const resumeText = extractResumeData(file.path);
         const score = scoreResume(resumeText, requiredSkills);
+        
+        // Prepare formatted evaluation points
+        const pointsDetails = evaluationPoints.map((item) => 
+            `${item.text.join(", ")}: ${item.points} points`
+        ).join(', ');
+
         rankedResumes.push({
             name: file.originalname,
-            score: score
+            score: score,
+            evaluationPoints: pointsDetails // Include formatted evaluation points in the response
         });
-    });
 
-    rankedResumes.sort((a, b) => b.score - a.score);
-
-    // Clean up uploaded files
-    req.files.forEach(file => {
+        // Clean up uploaded files
         fs.unlinkSync(file.path);
     });
+
+    // Sort resumes by score in descending order
+    rankedResumes.sort((a, b) => b.score - a.score);
 
     res.json(rankedResumes);
 });

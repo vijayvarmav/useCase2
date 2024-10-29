@@ -11,7 +11,7 @@ const Dashboard = () => {
   const [editIndex, setEditIndex] = useState(null);
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFiles, setResumeFiles] = useState([]);
-  const [evaluationPoints, setEvaluationPoints] = useState([]); // New state for evaluation points
+  const [evaluationPoints, setEvaluationPoints] = useState([]);
   const navigate = useNavigate();
 
   const handleInputChange = (e) => {
@@ -28,7 +28,9 @@ const Dashboard = () => {
 
   const handleEvaluationPointsChange = (index, value) => {
     const updatedPoints = [...evaluationPoints];
-    updatedPoints[index] = value; // Update the points for the specific item
+    if (updatedPoints[index]) {
+      updatedPoints[index].points = value; // Update the points for the specific item
+    }
     setEvaluationPoints(updatedPoints);
   };
 
@@ -39,21 +41,15 @@ const Dashboard = () => {
         .map((text) => text.trim())
         .filter((text) => text);
 
-      if (editIndex !== null) {
-        const updatedTexts = [...submittedTexts];
-        updatedTexts[editIndex] = {
-          text: newTexts,
-          experience: 0,
-        };
-        setSubmittedTexts(updatedTexts);
-        setEditIndex(null);
-      } else {
-        const newEntries = newTexts.map((text) => ({
+      newTexts.forEach((text) => {
+        const newEntry = {
           text: [text],
-          experience: 0,
-        }));
-        setSubmittedTexts([...submittedTexts, ...newEntries]);
-      }
+          points: "0", // Initialize with "0" as a string to match your desired output format
+        };
+        setSubmittedTexts((prev) => [...prev, newEntry]);
+        setEvaluationPoints((prev) => [...prev, newEntry]); // Initialize with new entry including points
+      });
+
       setInputText("");
       setDialogVisible(false);
     }
@@ -61,29 +57,30 @@ const Dashboard = () => {
 
   const handleEvaluateResumes = async () => {
     const formData = new FormData();
-    formData.append('jobDescription', jobDescription);
-    for (let file of resumeFiles) {
-      formData.append('resumes', file);
-    }
 
-    // Include evaluation points
-    submittedTexts.forEach((item, index) => {
-      formData.append(`evaluationPoints[${index}]`, evaluationPoints[index] || 0);
+    formData.append('jobDescription', jobDescription);
+    console.log('Evaluation Points before submission:', JSON.stringify(evaluationPoints));
+    formData.append('evaluationPoints', JSON.stringify(evaluationPoints));
+
+    Array.from(resumeFiles).forEach((file) => {
+        formData.append('resumes', file);
     });
 
     try {
-      const response = await axios.post('http://localhost:5000/api/evaluate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      console.log(response.data); // Handle response data
-      // Navigate or handle response as needed
-      navigate('/results', { state: { results: response.data } });
+        const response = await axios.post('http://localhost:5000/api/evaluate', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        
+        // Log the response data without any further action
+        console.log('Data received from backend:', response.data);
+        
     } catch (error) {
-      console.error("Error evaluating resumes:", error);
+        console.error('Error evaluating resumes:', error);
     }
-  };
+};
+
 
   const handleEdit = (index) => {
     const { text } = submittedTexts[index];
@@ -112,7 +109,6 @@ const Dashboard = () => {
         <h2>Please log in</h2>
       )}
 
-      {/* Job Description Input */}
       <div className="mt-3">
         <h4>Job Description:</h4>
         <textarea
@@ -124,7 +120,6 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Resume Upload Input */}
       <div className="mt-3">
         <h4>Upload Resumes:</h4>
         <input
@@ -135,6 +130,7 @@ const Dashboard = () => {
           className="form-control"
         />
       </div>
+
       <div className="d-flex flex-column align-items-center justify-content-center">
         <button
           className="btn btn-primary me-2 rounded-circle mt-3"
@@ -147,55 +143,56 @@ const Dashboard = () => {
         </button>
         <span>Click the "+" button to add Evaluation Points</span>
       </div>
-      <div className="p-3 mt-3">
-  <h4>Evaluation Points:</h4>
-  <ul className="list-unstyled">
-    {submittedTexts.map((item, index) => (
-      <li key={index} className="mb-3">
-        <div className="d-flex justify-content-between align-items-center">
-          <span>{item.text.join(", ")}</span>
-          <div className="d-flex align-items-center">
-            <span className="px-2 me-3">
-              <label className="me-2">Evaluation Points:</label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={evaluationPoints[index] || 0}
-                onChange={(e) => handleEvaluationPointsChange(index, e.target.value)}
-                className="form-range"
-              />
-              <span className="ms-2">{evaluationPoints[index] || 0}</span>
-            </span>
-            <button
-              className="btn btn-warning btn-sm me-2"
-              onClick={() => handleEdit(index)}
-            >
-              Edit
-            </button>
-            <button
-              className="btn btn-danger btn-sm"
-              onClick={() => handleDelete(index)}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </li>
-    ))}
-  </ul>
-</div>
 
-      <div className="d-flex justify-content-center">
-      <button
-        className="btn btn-success mt-3 text-center"
-        onClick={handleEvaluateResumes}
-      >
-        Evaluate Resumes
-      </button>
+      <div className="p-3 mt-3">
+        <h4>Evaluation Points:</h4>
+        <ul className="list-unstyled">
+          {evaluationPoints.map((item, index) => (
+            <li key={index} className="mb-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <span>{item.text.join(", ")}</span>
+                <div className="d-flex align-items-center">
+                  <span className="px-2 me-3">
+                    <label className="me-2">Points:</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      value={item.points}
+                      onChange={(e) => handleEvaluationPointsChange(index, e.target.value)}
+                      className="form-range"
+                      style={{ width: '100px' }}
+                    />
+                    <span>{item.points}</span>
+                  </span>
+                  <button
+                    className="btn btn-warning btn-sm me-2"
+                    onClick={() => handleEdit(index)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(index)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* Dialog for input */}
+      <div className="d-flex justify-content-center">
+        <button
+          className="btn btn-success mt-3 text-center"
+          onClick={handleEvaluateResumes}
+        >
+          Evaluate Resumes
+        </button>
+      </div>
+
       {dialogVisible && (
         <div className="modal show mt-5" style={{ display: "block" }}>
           <div className="modal-dialog">
@@ -241,9 +238,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-
-      {/* Display submitted texts */}
-
     </div>
   );
 };
