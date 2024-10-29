@@ -32,12 +32,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Function to extract skills from the job description
-const extractSkills = (jobDescription) => {
-    const skillsPattern = /\b(react|javascript|degree|restful apis|responsive design|version control|unit testing|good communicator)\b/gi;
-    return new Set(jobDescription.match(skillsPattern) || []);
-};
-
 // Function to read resume text based on file type
 const readResumeText = async (resumePath, mimeType) => {
     let resumeText = '';
@@ -59,15 +53,21 @@ const readResumeText = async (resumePath, mimeType) => {
     return resumeText;
 };
 
+// Function to extract skills from the job description
+const extractSkillsFromJobDescription = (jobDescription) => {
+    const skillsPattern = /\b(react|node|javascript|sql|git|css|html|api|development|mysql|material-ui|restful apis)\b/gi;
+    return new Set(jobDescription.toLowerCase().match(skillsPattern) || []);
+};
+
 // Function to extract resume data from uploaded file using basic NLP
-const extractResumeData = async (resumePath, mimeType) => {
+const extractResumeData = async (resumePath, mimeType, jobSkills) => {
     const resumeText = await readResumeText(resumePath, mimeType);
 
     const name = extractName(resumeText);
     const email = extractContactInfo(resumeText, 'email');
     const phone = extractContactInfo(resumeText, 'phone');
     const education = extractEducation(resumeText);
-    const skills = extractSkills(resumeText);
+    const skills = extractSkillsFromResume(resumeText, jobSkills); // Pass jobSkills for filtering
     const workExperience = extractWorkExperience(resumeText);
 
     return {
@@ -78,6 +78,16 @@ const extractResumeData = async (resumePath, mimeType) => {
         skills: Array.from(skills),
         workExperience
     };
+};
+
+// Function to extract skills from resume text
+const extractSkillsFromResume = (resumeText, jobSkills) => {
+    const skillsPattern = /\b(react|node|javascript|sql|git|css|html|api|development|mysql|material-ui|restful apis)\b/gi;
+    const foundSkills = resumeText.match(skillsPattern) || [];
+    const uniqueSkills = new Set(foundSkills);
+
+    // Filter skills to include only those that are in jobSkills
+    return new Set([...uniqueSkills].filter(skill => jobSkills.has(skill)));
 };
 
 // Function to extract name
@@ -110,58 +120,54 @@ const extractWorkExperience = (resumeText) => {
     return resumeText.match(/(?:worked at|employment:|experience:)(.+?)(?=\.\s|$)/gi) || [];
 };
 
-// Function to score resumes based on required skills and evaluation criteria
-const scoreResume = (resume, requiredSkills, evaluationPoints) => {
-    let skillScore = 0;
+// Function to calculate score based on skills found in both resume and evaluation points
+const calculateScore = (skills, evaluationPoints) => {
+    let score = 0;
 
-    // Score based on skills
-    requiredSkills.forEach(skill => {
-        if (resume.skills.includes(skill)) {
-            skillScore++;
+    skills.forEach(skill => {
+        if (evaluationPoints[skill]) {
+            score += Number(evaluationPoints[skill]); // Ensure score is treated as a number
         }
     });
 
-    // Score based on evaluation points
-    let evaluationScore = evaluationPoints.reduce((total, item) => {
-        const experienceWeight = item.experience || 0;
-        const skillWeight = resume.skills.includes(item.skill) ? item.points : 0;
-        return total + experienceWeight + skillWeight;
-    }, 0);
-
-    return skillScore + evaluationScore; // Combine scores
+    return score;
 };
 
 // API endpoint to evaluate resumes
 app.post('/api/evaluate', upload.array('resumes'), async (req, res) => {
     const jobDescription = req.body.jobDescription;
-    const requiredSkills = Array.from(extractSkills(jobDescription));
-    const evaluationPoints = JSON.parse(req.body.evaluationPoints || "[]");
+    const jobSkills = extractSkillsFromJobDescription(jobDescription);
+    
+    // Parse evaluation points as an object like { react: 5, node: 10 }
+    const evaluationPoints = JSON.parse(req.body.evaluationPoints || "{}");
+    console.log('Parsed Evaluation Points:', evaluationPoints); // Debugging line
 
     try {
-        // Collect resumes and their scores
-        const scores = await Promise.all(req.files.map(async (file) => {
-            const resumeData = await extractResumeData(file.path, file.mimetype);
-            const totalScore = scoreResume(resumeData, requiredSkills, evaluationPoints);
+        const results = await Promise.all(req.files.map(async (file) => {
+            const resumeData = await extractResumeData(file.path, file.mimetype, jobSkills);
+
+            // Debugging: Log the skills extracted from the resume
+            console.log('Extracted Skills from Resume:', resumeData.skills);
+
+            // Calculate the score based on evaluation points
+            const score = calculateScore(resumeData.skills, evaluationPoints);
+            console.log('Calculated Score:', score); // Debugging line
 
             return {
+                score, // This should be a number now
                 name: resumeData.name,
                 email: resumeData.email,
                 phone: resumeData.phone,
                 education: resumeData.education,
                 skills: resumeData.skills,
-                workExperience: resumeData.workExperience,
-                totalScore
+                workExperience: resumeData.workExperience
             };
         }));
-
-        // Sort scores in descending order
-        const sortedScores = scores.sort((a, b) => b.totalScore - a.totalScore);
 
         // Clean up uploaded files
         req.files.forEach(file => fs.unlinkSync(file.path));
 
-        // Return the sorted response data
-        res.json(sortedScores);
+        res.json(results);
     } catch (error) {
         console.error("Error processing evaluation:", error);
         res.status(500).json({ error: 'Error processing evaluation' });

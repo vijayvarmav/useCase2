@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 import axios from "axios";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate(); // Initialize useNavigate
   const [dialogVisible, setDialogVisible] = useState(false);
   const [inputText, setInputText] = useState("");
   const [submittedTexts, setSubmittedTexts] = useState([]);
@@ -12,8 +13,6 @@ const Dashboard = () => {
   const [jobDescription, setJobDescription] = useState("");
   const [resumeFiles, setResumeFiles] = useState([]);
   const [evaluationPoints, setEvaluationPoints] = useState([]);
-  const [results, setResults] = useState([]);
-  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     setInputText(e.target.value);
@@ -29,9 +28,7 @@ const Dashboard = () => {
 
   const handleEvaluationPointsChange = (index, value) => {
     const updatedPoints = [...evaluationPoints];
-    if (updatedPoints[index]) {
-      updatedPoints[index].points = value; // Update the points for the specific item
-    }
+    updatedPoints[index].points = value; // Update the points for the specific item
     setEvaluationPoints(updatedPoints);
   };
 
@@ -42,27 +39,14 @@ const Dashboard = () => {
         .map((text) => text.trim())
         .filter((text) => text);
 
-      const newEntry = {
-        text: newTexts,
-        points: 0, // Initialize with 0
-      };
-
-      if (editIndex !== null) {
-        // Edit the existing entry
-        const updatedTexts = [...submittedTexts];
-        updatedTexts[editIndex] = newEntry;
-
-        const updatedEvaluationPoints = [...evaluationPoints];
-        updatedEvaluationPoints[editIndex] = newEntry;
-
-        setSubmittedTexts(updatedTexts);
-        setEvaluationPoints(updatedEvaluationPoints);
-        setEditIndex(null); // Clear edit index for future additions
-      } else {
-        // Add new entry
+      newTexts.forEach((newText) => {
+        const newEntry = {
+          text: newText,
+          points: 0, // Initialize with 0
+        };
         setSubmittedTexts((prev) => [...prev, newEntry]);
-        setEvaluationPoints((prev) => [...prev, newEntry]);
-      }
+        setEvaluationPoints((prev) => [...prev, { text: newText, points: 0 }]);
+      });
 
       setInputText("");
       setDialogVisible(false);
@@ -71,10 +55,15 @@ const Dashboard = () => {
 
   const handleEvaluateResumes = async () => {
     const formData = new FormData();
-
     formData.append("jobDescription", jobDescription);
-    console.log("Evaluation Points before submission:", JSON.stringify(evaluationPoints));
-    formData.append("evaluationPoints", JSON.stringify(evaluationPoints));
+
+    // Transform evaluationPoints into a key-value pair for easier processing in the backend
+    const transformedPoints = evaluationPoints.reduce((acc, item) => {
+      acc[item.text] = item.points; // Assign points for each skill
+      return acc;
+    }, {});
+
+    formData.append("evaluationPoints", JSON.stringify(transformedPoints));
 
     Array.from(resumeFiles).forEach((file) => {
       formData.append("resumes", file);
@@ -87,8 +76,8 @@ const Dashboard = () => {
         },
       });
 
-      // Store the results and potentially display them to the user
-      setResults(response.data);
+      // Navigate to EvaluationResults page with results
+      navigate("/evaluation", { state: { results: response.data } });
 
     } catch (error) {
       console.error("Error evaluating resumes:", error);
@@ -96,9 +85,9 @@ const Dashboard = () => {
   };
 
   const handleEdit = (index) => {
-    const { text } = submittedTexts[index];
+    const textToEdit = evaluationPoints[index].text;
     setEditIndex(index);
-    setInputText(text.join(", "));
+    setInputText(textToEdit);
     setDialogVisible(true);
   };
 
@@ -163,7 +152,7 @@ const Dashboard = () => {
           {evaluationPoints.map((item, index) => (
             <li key={index} className="mb-3">
               <div className="d-flex justify-content-between align-items-center">
-                <span>{item.text.join(", ")}</span>
+                <span>{item.text}</span>
                 <div className="d-flex align-items-center">
                   <span className="px-2 me-3">
                     <label className="me-2">Points:</label>
@@ -203,25 +192,7 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Display Evaluation Results */}
-      {results.length > 0 && (
-        <div className="mt-3">
-          <h4>Evaluation Results:</h4>
-          <ul className="list-group">
-            {results.map((result, index) => (
-              <li key={index} className="list-group-item">
-                <strong>{result.name}</strong> (Score: {result.totalScore})
-                <div>Email: {result.email}</div>
-                <div>Phone: {result.phone}</div>
-                <div>Education: {result.education.join(', ')}</div>
-                <div>Skills: {result.skills.join(', ')}</div>
-                <div>Experience: {result.workExperience.join(', ')}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
+      {/* Modal for Adding/Editing Evaluation Points */}
       {dialogVisible && (
         <div className="modal show mt-5" style={{ display: "block" }}>
           <div className="modal-dialog">
@@ -235,12 +206,12 @@ const Dashboard = () => {
                 </button>
               </div>
               <div className="modal-body">
-                <input
-                  type="text"
+                <textarea
                   value={inputText}
                   onChange={handleInputChange}
                   className="form-control"
                   placeholder="Enter Requirements (separated by commas)"
+                  rows="3"
                 />
               </div>
               <div className="modal-footer">
