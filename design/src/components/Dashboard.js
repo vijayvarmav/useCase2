@@ -40,16 +40,30 @@ const Dashboard = () => {
         .split(",")
         .map((text) => text.trim())
         .filter((text) => text);
-
-      newTexts.forEach((text) => {
-        const newEntry = {
-          text: [text],
-          points: "0", // Initialize with "0" as a string to match your desired output format
-        };
-        setSubmittedTexts((prev) => [...prev, newEntry]);
-        setEvaluationPoints((prev) => [...prev, newEntry]); // Initialize with new entry including points
-      });
-
+ 
+      if (editIndex !== null) {
+        // Edit the existing entry
+        const updatedTexts = [...submittedTexts];
+        updatedTexts[editIndex] = { text: newTexts, points: evaluationPoints[editIndex].points };
+ 
+        const updatedEvaluationPoints = [...evaluationPoints];
+        updatedEvaluationPoints[editIndex] = { text: newTexts, points: evaluationPoints[editIndex].points };
+ 
+        setSubmittedTexts(updatedTexts);
+        setEvaluationPoints(updatedEvaluationPoints);
+        setEditIndex(null); // Clear edit index for future additions
+      } else {
+        // Add new entry
+        newTexts.forEach((text) => {
+          const newEntry = {
+            text: [text],
+            points: "0", // Initialize with "0" as a string
+          };
+          setSubmittedTexts((prev) => [...prev, newEntry]);
+          setEvaluationPoints((prev) => [...prev, newEntry]);
+        });
+      }
+ 
       setInputText("");
       setDialogVisible(false);
     }
