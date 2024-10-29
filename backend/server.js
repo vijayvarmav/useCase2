@@ -92,8 +92,26 @@ const extractSkillsFromResume = (resumeText, jobSkills) => {
 
 // Function to extract name
 const extractName = (resumeText) => {
-    // Assuming the name is the first line
-    return resumeText.split('\n')[0].trim();
+    const lines = resumeText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    let name = '';
+
+    // Pattern 1: Full name at the start (assumes first line is name)
+    if (lines.length > 0) {
+        name = lines[0];
+    }
+
+    // Pattern 2: Look for common name formats in subsequent lines
+    const namePattern = /^(Mr\.?|Ms\.?|Mrs\.?|Dr\.?|Prof\.?)?\s*([A-Z][a-z]+(\s+[A-Z][a-z]+)*\s+[A-Z][a-z]+)$/; // Example: "John Doe" or "Dr. Jane Smith"
+    
+    for (let i = 1; i < lines.length; i++) {
+        const match = lines[i].match(namePattern);
+        if (match) {
+            name = match[0]; // Use the matched name format
+            break;
+        }
+    }
+
+    return name.trim();
 };
 
 // Function to extract contact information
